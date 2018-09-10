@@ -90,9 +90,9 @@ void TextTable::DrawTable(HDC hDc)
     int xCell = m_x;
     int yCell = m_y;
     int hghtCell;
-    for (INT iRow = 0; iRow < m_cRows; iRow++) {
+    for (int iRow = 0; iRow < m_cRows; iRow++) {
         hghtCell = m_bAlignRows ? m_hghtCellMax : m_ahghtCell->at(iRow);
-        for (INT iCol = 0; iCol < m_cCols; iCol++) {
+        for (int iCol = 0; iCol < m_cCols; iCol++) {
             Rectangle(hDc, xCell - TABLE_PEN_WIDTH, yCell,
                 xCell + m_wdthCell, yCell + hghtCell + TABLE_PEN_WIDTH);
 
