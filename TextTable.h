@@ -13,27 +13,19 @@ typedef std::vector<TableRowContent> TableContent;
 class TextTable
 {
 public:
-    TextTable(TableContent content, int x, int y, int wdthTable, HFONT hFont,
-        bool bAlignRows = true);
-    void Draw(HDC hDc);
-    HFONT SetFont(HFONT hFont);
-    HFONT GetFont();
-    TableContent &SetContent(TableContent content);
-    TableContent &GetContent();
-    void SetXY(int x, int y);
-    int GetX();
-    int GetY();
-    int SetTableWidth(int wdth);
-    int GetTableWidth();
-    void AlignRows(bool bOption);
+    TextTable(HDC hDc, TableContent &content, int x, int y, int wdthTable,
+        HFONT hFont, bool bAlignRows = true);
+    void Draw();
+    int GetHeight();
 private:
-    HFONT m_hFont;
+    HDC m_hDc;
     TableContent m_content;
     int m_x;
     int m_y;
     int m_wdthTable;
     bool m_bAlignRows;
 
+    HFONT m_hFont;
     TEXTMETRIC m_txtmtrc;
     int m_wdthCell;
     std::vector<int> m_ahghtCell;
@@ -42,6 +34,7 @@ private:
     int m_hghtTableActual;
     unsigned m_cCols;
     unsigned m_cRows;
+
     static const float CHAR_WIDTH_COEFF;
     static const COLORREF TABLE_BRUSH_COLOR;
     static const COLORREF TABLE_PEN_COLOR;
@@ -49,8 +42,7 @@ private:
     static const int TABLE_PEN_TYPE;
 
     TextTable(const TextTable &) = delete;
-    void DrawTable(HDC hDc);
-    void CalculateMetrics(HDC hWndDc);
+    void CalculateMetrics();
     std::vector<int> GetCellHeights(TableContent &content);
     static int GetNumberOfColumns(TableContent &content);
     static int GetMaxElementLength(TableRowContent &row);

@@ -6,86 +6,20 @@ const COLORREF TextTable::TABLE_PEN_COLOR = RGB(0, 0, 0);
 const int TextTable::TABLE_PEN_WIDTH = 1;
 const int TextTable::TABLE_PEN_TYPE = PS_SOLID;
 
-TextTable::TextTable(TableContent content, int x, int y, int wdthTable, HFONT hFont,
-    bool bAlignRows) : m_content(content),
-    m_x(x), m_y(y), m_wdthTable(wdthTable), m_hFont(hFont), m_bAlignRows(bAlignRows)
-{}
-
-void TextTable::Draw(HDC hWndDc)
+TextTable::TextTable(HDC hDc, TableContent &content, int x, int y, int wdthTable, HFONT hFont,
+    bool bAlignRows) : m_hDc(hDc), m_content(content), m_x(x), m_y(y), m_wdthTable(wdthTable), 
+    m_hFont(hFont), m_bAlignRows(bAlignRows), m_hghtTableMax(0), m_hghtTableActual(0)
 {
-    HFONT hOldFont = (HFONT)SelectObject(hWndDc, m_hFont);
-    
-    CalculateMetrics(hWndDc);
-
-    const int hghtTable = m_bAlignRows ? m_hghtTableMax : m_hghtTableActual;
-
-    DrawTable(hWndDc);
-
-    SelectObject(hWndDc, hOldFont);
+    CalculateMetrics();
 }
 
-HFONT TextTable::SetFont(HFONT hFont)
+void TextTable::Draw()
 {
-    HFONT hOldFont = m_hFont;
-    m_hFont = hFont;
-    return hOldFont;
-}
-
-HFONT TextTable::GetFont()
-{
-    return m_hFont;
-}
-
-TableContent &TextTable::SetContent(TableContent content)
-{
-    TableContent &contentOld = m_content;
-    m_content = content;
-    return contentOld;
-}
-TableContent &TextTable::GetContent()
-{
-    return m_content;
-}
-
-void TextTable::SetXY(int x, int y)
-{
-    m_x = x;
-    m_y = y;
-}
-
-int TextTable::GetX()
-{
-    return m_x;
-}
-
-int TextTable::GetY()
-{
-    return m_y;
-}
-
-int TextTable::SetTableWidth(int wdth)
-{
-    int wdthTableOld = m_wdthTable;
-    m_wdthTable = wdth;
-    return wdthTableOld;
-}
-
-int TextTable::GetTableWidth()
-{
-    return m_wdthTable;
-}
-
-void TextTable::AlignRows(bool bOption)
-{
-    m_bAlignRows;
-}
-
-void TextTable::DrawTable(HDC hDc)
-{
+    HFONT hOldFont = (HFONT)SelectObject(m_hDc, m_hFont);
     const HBRUSH hBr = CreateSolidBrush(TABLE_BRUSH_COLOR);
-    const HBRUSH hOldBr = (HBRUSH)SelectObject(hDc, hBr);
+    const HBRUSH hOldBr = (HBRUSH)SelectObject(m_hDc, hBr);
     const HPEN hPn = CreatePen(TABLE_PEN_TYPE, TABLE_PEN_WIDTH, TABLE_PEN_COLOR);
-    const HPEN hOldPn = (HPEN)SelectObject(hDc, hPn);
+    const HPEN hOldPn = (HPEN)SelectObject(m_hDc, hPn);
 
     int xCell = m_x;
     int yCell = m_y;
@@ -93,7 +27,7 @@ void TextTable::DrawTable(HDC hDc)
     for (unsigned iRow = 0; iRow < m_cRows; iRow++) {
         hghtCell = m_bAlignRows ? m_hghtCellMax : m_ahghtCell.at(iRow);
         for (unsigned iCol = 0; iCol < m_cCols; iCol++) {
-            Rectangle(hDc, xCell - TABLE_PEN_WIDTH, yCell,
+            Rectangle(m_hDc, xCell - TABLE_PEN_WIDTH, yCell,
                 xCell + m_wdthCell, yCell + hghtCell + TABLE_PEN_WIDTH);
 
             RECT rectCell;
@@ -102,25 +36,33 @@ void TextTable::DrawTable(HDC hDc)
             rectCell.right = xCell + m_wdthCell - TABLE_PEN_WIDTH;
             rectCell.bottom = yCell + hghtCell - TABLE_PEN_WIDTH;
             if (m_content.size() > iRow && m_content[iRow].size() > iCol) {
-                DrawText(hDc, (LPCTSTR)m_content[iRow][iCol].c_str(), -1, &rectCell, 
-                     DT_CENTER | DT_WORDBREAK | DT_EDITCONTROL);
+                DrawText(m_hDc, (LPCTSTR)m_content[iRow][iCol].c_str(), -1, &rectCell,
+                    DT_CENTER | DT_WORDBREAK | DT_EDITCONTROL);
             }
-           
+
             xCell += m_wdthCell;
         }
         xCell = m_x;
         yCell += hghtCell;
     }
 
-    SelectObject(hDc, hOldBr);
-    DeleteObject(hBr);
-    SelectObject(hDc, hOldPn);
+    SelectObject(m_hDc, hOldPn);
     DeleteObject(hPn);
+    SelectObject(m_hDc, hOldBr);
+    DeleteObject(hBr);
+    SelectObject(m_hDc, hOldFont);
 }
 
-void TextTable::CalculateMetrics(HDC hWndDc)
+int TextTable::GetHeight()
 {
-    GetTextMetrics(hWndDc, &m_txtmtrc);
+    return m_bAlignRows ? m_hghtTableMax : m_hghtTableActual;
+}
+
+void TextTable::CalculateMetrics()
+{
+    HFONT hOldFont = (HFONT)SelectObject(m_hDc, m_hFont);
+    GetTextMetrics(m_hDc, &m_txtmtrc);
+    SelectObject(m_hDc, hOldFont);
 
     m_cCols = TextTable::GetNumberOfColumns(m_content);
     m_cRows = m_content.size();
