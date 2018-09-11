@@ -1,38 +1,27 @@
 #include "TextTable.h"
 
+const float TextTable::CHAR_WIDTH_COEFF = 1.5;
 const COLORREF TextTable::TABLE_BRUSH_COLOR = RGB(255, 255, 255);
 const COLORREF TextTable::TABLE_PEN_COLOR = RGB(0, 0, 0);
 const int TextTable::TABLE_PEN_WIDTH = 1;
 const int TextTable::TABLE_PEN_TYPE = PS_SOLID;
 
-TextTable::TextTable(TableContent &content, int x, int y, int wdthTable, HFONT hFont,
+TextTable::TextTable(TableContent content, int x, int y, int wdthTable, HFONT hFont,
     bool bAlignRows) : m_content(content),
-    m_x(x), m_y(y), m_wdthTable(wdthTable), m_hFont(hFont), m_bAlignRows(bAlignRows), m_ahghtCell(nullptr)
+    m_x(x), m_y(y), m_wdthTable(wdthTable), m_hFont(hFont), m_bAlignRows(bAlignRows)
 {}
 
-TextTable::~TextTable()
+void TextTable::Draw(HDC hWndDc)
 {
-    if (m_ahghtCell) {
-        delete m_ahghtCell;
-    }
-}
-
-void TextTable::Draw(HWND hWnd)
-{
-    PAINTSTRUCT ps;
-    const HDC hWndDc = BeginPaint(hWnd, &ps);
-
     HFONT hOldFont = (HFONT)SelectObject(hWndDc, m_hFont);
-    TEXTMETRIC txtmtrc;
-    GetTextMetrics(hWndDc, &txtmtrc);
-    CalculateMetrics(txtmtrc);
+    
+    CalculateMetrics(hWndDc);
 
     const int hghtTable = m_bAlignRows ? m_hghtTableMax : m_hghtTableActual;
 
     DrawTable(hWndDc);
 
     SelectObject(hWndDc, hOldFont);
-    EndPaint(hWnd, &ps);
 }
 
 HFONT TextTable::SetFont(HFONT hFont)
@@ -45,6 +34,17 @@ HFONT TextTable::SetFont(HFONT hFont)
 HFONT TextTable::GetFont()
 {
     return m_hFont;
+}
+
+TableContent &TextTable::SetContent(TableContent content)
+{
+    TableContent &contentOld = m_content;
+    m_content = content;
+    return contentOld;
+}
+TableContent &TextTable::GetContent()
+{
+    return m_content;
 }
 
 void TextTable::SetXY(int x, int y)
@@ -90,9 +90,9 @@ void TextTable::DrawTable(HDC hDc)
     int xCell = m_x;
     int yCell = m_y;
     int hghtCell;
-    for (int iRow = 0; iRow < m_cRows; iRow++) {
-        hghtCell = m_bAlignRows ? m_hghtCellMax : m_ahghtCell->at(iRow);
-        for (int iCol = 0; iCol < m_cCols; iCol++) {
+    for (unsigned iRow = 0; iRow < m_cRows; iRow++) {
+        hghtCell = m_bAlignRows ? m_hghtCellMax : m_ahghtCell.at(iRow);
+        for (unsigned iCol = 0; iCol < m_cCols; iCol++) {
             Rectangle(hDc, xCell - TABLE_PEN_WIDTH, yCell,
                 xCell + m_wdthCell, yCell + hghtCell + TABLE_PEN_WIDTH);
 
@@ -102,7 +102,8 @@ void TextTable::DrawTable(HDC hDc)
             rectCell.right = xCell + m_wdthCell - TABLE_PEN_WIDTH;
             rectCell.bottom = yCell + hghtCell - TABLE_PEN_WIDTH;
             if (m_content.size() > iRow && m_content[iRow].size() > iCol) {
-                DrawText(hDc, (LPCTSTR)m_content[iRow][iCol].c_str(), -1, &rectCell, DT_CENTER | DT_WORDBREAK | DT_EDITCONTROL);
+                DrawText(hDc, (LPCTSTR)m_content[iRow][iCol].c_str(), -1, &rectCell, 
+                     DT_CENTER | DT_WORDBREAK | DT_EDITCONTROL);
             }
            
             xCell += m_wdthCell;
@@ -117,31 +118,29 @@ void TextTable::DrawTable(HDC hDc)
     DeleteObject(hPn);
 }
 
-void TextTable::CalculateMetrics(TEXTMETRIC txtmtrc)
+void TextTable::CalculateMetrics(HDC hWndDc)
 {
-    m_cCols = TextTable::GetNumberOfColumns(m_content);
+    GetTextMetrics(hWndDc, &m_txtmtrc);
 
-    auto fnCountElements = [](int acc, const TableRowContent &row) {
-        return acc + row.size();
-    };
-    int cElements = std::accumulate(m_content.begin(), m_content.end(), 
-        0, fnCountElements);
-    m_cRows = (int)std::ceil((double)cElements / m_cCols);
+    m_cCols = TextTable::GetNumberOfColumns(m_content);
+    m_cRows = m_content.size();
 
     m_wdthCell = m_wdthTable / m_cCols;
-    m_ahghtCell = GetCellHeights(m_content, txtmtrc);
+    m_ahghtCell = GetCellHeights(m_content);
 
-    m_hghtCellMax = *std::max_element(m_ahghtCell->begin(), m_ahghtCell->end());
-    m_hghtTableMax = m_hghtCellMax * m_ahghtCell->size();
-    m_hghtTableActual = std::accumulate(m_ahghtCell->begin(), m_ahghtCell->end(), 0, std::plus<int>());
+    m_hghtCellMax = *std::max_element(m_ahghtCell.begin(), m_ahghtCell.end());
+    m_hghtTableMax = m_hghtCellMax * m_ahghtCell.size();
+    m_hghtTableActual = std::accumulate(m_ahghtCell.begin(), m_ahghtCell.end(), 0, std::plus<int>());
 }
 
-std::vector<int> *TextTable::GetCellHeights(TableContent &content, TEXTMETRIC txtmtrc) {
+std::vector<int> TextTable::GetCellHeights(TableContent &content) {
 
-    const int wdthCellInChars = (int)std::ceil((double)m_wdthCell / (txtmtrc.tmAveCharWidth + txtmtrc.tmOverhang));
-    std::vector<int> *ahghtCell = new std::vector<int>;
+    const int wdthCellInChars = (int)std::ceil((double)m_wdthCell / (m_txtmtrc.tmAveCharWidth * CHAR_WIDTH_COEFF + m_txtmtrc.tmOverhang));
+    std::vector<int> ahghtCell;
     for (TableRowContent &row : content) {
-        ahghtCell->push_back((txtmtrc.tmExternalLeading + txtmtrc.tmHeight) * (int)std::ceil(((double)GetMaxElementLength(row) / wdthCellInChars)));
+        ahghtCell.push_back(
+            (m_txtmtrc.tmInternalLeading + m_txtmtrc.tmExternalLeading + m_txtmtrc.tmHeight) *
+            (int)std::ceil(((double)GetMaxElementLength(row) / wdthCellInChars)));
     }
     return ahghtCell;
 }
@@ -161,7 +160,7 @@ int TextTable::GetNumberOfColumns(TableContent &content)
 int TextTable::GetMaxElementLength(TableRowContent &row)
 {
     int iMaxLength = 0;
-    for (std::string &element : row) {
+    for (std::wstring &element : row) {
         if (((int)element.length() > iMaxLength)) {
             iMaxLength = element.length();
         }
