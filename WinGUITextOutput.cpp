@@ -1,9 +1,14 @@
 ﻿#include <windows.h>
-#include <tchar.h>
+#include <fstream>
+#include <sstream>
+#include <codecvt>
 #include "TextTable.h"
 
-#define WINDOW_CLASS_NAME _T("WinGUITextOutputMainWindow")
-#define WINDOW_TITLE _T("Windows GUI Text Output Lab")
+#define ERROR_CAPTION L"Error"
+#define E_FILE_NOT_OPENED "Can not open file"
+
+#define WINDOW_CLASS_NAME L"WinGUITextOutputMainWindow"
+#define WINDOW_TITLE L"Windows GUI Text Output Lab"
 #define DEFAULT_WINDOW_WIDTH 1000
 #define DEFAULT_WINDOW_HEIGHT 500
 #define MIN_WINDOW_WIDTH 400
@@ -13,26 +18,31 @@
 #define IDM_AUTHOR 0x01
 #define IDM_OPEN 0x02
 
-#define FILE_MENU_ITEM_TITLE _T("File")
-#define FILE_OPEN_MENU_ITEM_TITLE _T("Open")
-#define HELP_MENU_ITEM_TITLE _T("Help")
-#define AUTHOR_MENU_ITEM_TITLE _T("Author")
+#define FILE_MENU_ITEM_TITLE L"File"
+#define FILE_OPEN_MENU_ITEM_TITLE L"Open"
+#define HELP_MENU_ITEM_TITLE L"Help"
+#define AUTHOR_MENU_ITEM_TITLE L"Author"
 
-#define TEXT_HELP _T("No help here right now.")
-#define TEXT_ABOUT_AUTHOR _T("Arseni Rynkevich\r\nStudent group 651003\r\nhttps://github.com/NRGb3nder")
+#define TEXT_FILE_NOT_OPENED L"Can not open file"
+#define TEXT_HELP L"No help here right now"
+#define TEXT_ABOUT_AUTHOR L"Arseni Rynkevich\r\nStudent group 651003\r\nhttps://github.com/NRGb3nder"
 
 #define TABLE_HORIZONTAL_MARGIN (MIN_WINDOW_WIDTH / 10)
 #define TABLE_VERTICAL_MARGIN (MIN_WINDOW_HEIGHT / 10)
 
+#define TABLE_DELIMITER '|'
+
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 void AddMenu(HWND hWnd);
+void ShowOpenTableFileDialog(HWND hWnd);
 void OnPaint(HWND hWnd);
+TableContent GetFileContent(std::wstring sPath, wchar_t cDelimiter);
 
 HMENU hMenu;
 HMENU hFileSubMenu;
 HFONT hFont;
 
-bool useDoubleBuffering = true;
+TableContent content;
 
 int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
@@ -47,8 +57,9 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
     RegisterClass(&wndc);
 
-    const HWND hWnd = CreateWindow(WINDOW_CLASS_NAME, WINDOW_TITLE, WS_OVERLAPPEDWINDOW | WS_VISIBLE,
-        CW_USEDEFAULT, CW_USEDEFAULT, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT, NULL, NULL, hInstance, NULL);
+    const HWND hWnd = CreateWindow(WINDOW_CLASS_NAME, WINDOW_TITLE, WS_OVERLAPPEDWINDOW | 
+        WS_VISIBLE | WS_VSCROLL | WS_HSCROLL, CW_USEDEFAULT, CW_USEDEFAULT, 
+        DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT, NULL, NULL, hInstance, NULL);
 
     ShowWindow(hWnd, nCmdShow);
     UpdateWindow(hWnd);
@@ -65,11 +76,17 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     LPMINMAXINFO lpMMI;
+    RECT rectWnd;
 
     switch (message) {
+    case WM_PAINT:
+        OnPaint(hWnd);
+        break;
     case WM_CREATE:
         AddMenu(hWnd);
-        hFont = CreateFont(0, 0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, 0, 0, 0, 0, "Arial");
+        hFont = CreateFont(18, 0, 0, 0, 300, false, false, false, 
+            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, 
+            DEFAULT_QUALITY, DEFAULT_PITCH, L"Arial Narrow");
         break;
     case WM_DESTROY:
         DeleteObject(hFont);
@@ -83,15 +100,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_COMMAND:
         switch (wParam) {
         case IDM_HELP:
-            MessageBox(hWnd, TEXT_HELP, HELP_MENU_ITEM_TITLE, MB_OK);
+            MessageBox(hWnd, TEXT_HELP, HELP_MENU_ITEM_TITLE, MB_OK | MB_ICONINFORMATION);
             break;
         case IDM_AUTHOR:
-            MessageBox(hWnd, TEXT_ABOUT_AUTHOR, AUTHOR_MENU_ITEM_TITLE, MB_OK);
+            MessageBox(hWnd, TEXT_ABOUT_AUTHOR, AUTHOR_MENU_ITEM_TITLE, MB_OK | MB_ICONINFORMATION);
+            break;
+        case IDM_OPEN:
+            ShowOpenTableFileDialog(hWnd);
+            GetClientRect(hWnd, &rectWnd);
+            InvalidateRect(hWnd, &rectWnd, true);
             break;
         }
-        break;
-    case WM_PAINT:
-        OnPaint(hWnd);
         break;
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
@@ -111,18 +130,70 @@ void AddMenu(HWND hWnd)
     SetMenu(hWnd, hMenu);
 }
 
+void ShowOpenTableFileDialog(HWND hWnd)
+{
+    OPENFILENAME ofn;
+    wchar_t szFileName[MAX_PATH];
+
+    ofn = { 0 };
+    ofn.lStructSize = sizeof(OPENFILENAME);
+    ofn.hwndOwner = hWnd;
+    ofn.lpstrFilter = L"Text Files (*.txt)\0*.txt\0";
+    ofn.lpstrFile = NULL;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
+    ofn.lpstrDefExt = L"txt";
+    ofn.lpstrFile = szFileName;
+    ofn.lpstrFile[0] = '\0';
+
+    if (GetOpenFileName(&ofn)) {
+        try {
+            content = GetFileContent(szFileName, TABLE_DELIMITER);
+        } catch (std::exception *e) {
+            MessageBox(hWnd, TEXT_FILE_NOT_OPENED, ERROR_CAPTION, MB_OK | MB_ICONERROR);
+            delete e;
+        }
+    }
+}
+
 void OnPaint(HWND hWnd)
 {
-    RECT wndRect;
-    GetClientRect(hWnd, &wndRect);
-    const int wdthWnd = wndRect.right - wndRect.left;
+    PAINTSTRUCT ps;
+    const HDC hWndDc = BeginPaint(hWnd, &ps);
+    if (content.size()) {
+        RECT wndRect;
+        GetClientRect(hWnd, &wndRect);
+        const int wdthWnd = wndRect.right - wndRect.left;
 
-   const int wdthTable = wdthWnd - 2 * TABLE_HORIZONTAL_MARGIN;
-    TableContent content = { 
-        { _T("Oneasfasfasfafasf"), _T("Twasfasfasfasfasfasfaso"), _T("Thrasfasffsfsee") },
-        { _T("Fosfsfsfsfsfur"), _T("Fsfihashashahve") },
-        { _T("Shahhahashsahashahashashasashaix"), _T("Seven"), _T("Eighsahashashasht"), _T("Nihne") }
-    };
-    TextTable *textTable = new TextTable(content, TABLE_HORIZONTAL_MARGIN, TABLE_VERTICAL_MARGIN, wdthTable, hFont, false);
-    textTable->Draw(hWnd);
+        const int wdthTable = wdthWnd - 2 * TABLE_HORIZONTAL_MARGIN;
+        TextTable *textTable = new TextTable(content, TABLE_HORIZONTAL_MARGIN, TABLE_VERTICAL_MARGIN, wdthTable, hFont, false);
+        textTable->Draw(hWndDc);
+        delete textTable;
+    }
+    EndPaint(hWnd, &ps);
+}
+
+TableContent GetFileContent(std::wstring sPath, wchar_t cDelimiter)
+{
+    std::wifstream ifs(sPath);
+    ifs.imbue(std::locale(ifs.getloc(), new std::codecvt_utf8<wchar_t>));
+    if (!ifs) {
+        throw new std::exception("Can not open file");
+    }
+
+    TableContent content;
+    std::wstring sLine;
+    while (std::getline(ifs, sLine)) {
+        if (!sLine.empty()) {
+            std::wistringstream iss(sLine);
+            TableRowContent rowContent;
+            std::wstring sWord;
+            while (std::getline(iss, sWord, cDelimiter)) {
+                rowContent.push_back(sWord);
+            }
+            content.push_back(rowContent);
+        }
+    }
+
+    return content;
 }
