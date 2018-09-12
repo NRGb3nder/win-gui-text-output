@@ -16,8 +16,7 @@
 #define TABLE_HORIZONTAL_MARGIN (WINDOW_MIN_WIDTH / 10)
 #define TABLE_VERTICAL_MARGIN (WINDOW_MIN_HEIGHT / 10)
 
-#define VSCROLLBAR_STEP 1
-#define VSCROLLBAR_MARGIN TABLE_VERTICAL_MARGIN
+#define VSCROLLBAR_STEP 5
 
 #define CHECKBOX_ALIGN_ROWS_CLASS_NAME L"Button"
 #define CHECKBOX_ALIGN_ROWS_CAPTION L"Align Rows"
@@ -52,12 +51,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 void OnCreate(HWND hWnd, LPARAM lParam);
 void OnCommand(HWND hWnd, WPARAM wParam);
 void OnTryPaint(HWND hWnd);
-void OnTryResize(LPARAM lParam);
+void OnTryGetResizeInfo(LPARAM lParam);
 void OnTryVerticalScroll(HWND hWnd, WPARAM wParam);
 
 void AddMenu(HWND hWnd);
 void ShowOpenTableFileDialog(HWND hWnd);
 TableContent GetFileContent(std::wstring sPath, wchar_t cDelimiter);
+std::wstring Trim(std::wstring &s);
 
 HMENU hMenu;
 HMENU hFileSubMenu;
@@ -74,7 +74,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 {
     CreateMainWindowClass(hInstance);
 
-    const HWND hWnd = CreateWindow(WINDOW_CLASS_NAME, WINDOW_TITLE, WS_OVERLAPPEDWINDOW |
+    const HWND hWnd = CreateWindow(WINDOW_CLASS_NAME, WINDOW_TITLE, 
+        WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX |
         WS_VISIBLE | WS_VSCROLL, CW_USEDEFAULT, CW_USEDEFAULT, 
         WINDOW_DEFAULT_WIDTH, WINDOW_DEFAULT_HEIGHT, NULL, NULL, hInstance, NULL);
 
@@ -121,7 +122,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         OnTryPaint(hWnd);
         break;
     case WM_GETMINMAXINFO:
-        OnTryResize(lParam);
+        OnTryGetResizeInfo(lParam);
         break;
     case WM_VSCROLL:
         OnTryVerticalScroll(hWnd, wParam);
@@ -171,43 +172,43 @@ void OnCommand(HWND hWnd, WPARAM wParam)
 }
 
 void OnTryPaint(HWND hWnd)
-{
+{   
     PAINTSTRUCT ps;
     const HDC hWndDc = BeginPaint(hWnd, &ps);
-    if (content.size()) {
-        RECT wndRect;
-        GetClientRect(hWnd, &wndRect);
-        const int hghtWnd = wndRect.bottom - wndRect.top;
-        const int wdthWnd = wndRect.right - wndRect.left;
-        const int wdthTable = wdthWnd - 2 * TABLE_HORIZONTAL_MARGIN;
 
-        SCROLLINFO si;
-        si.cbSize = sizeof(SCROLLINFO);
-        si.fMask = SIF_ALL;
-        GetScrollInfo(hWnd, SB_VERT, &si);
+    RECT wndRect;
+    GetClientRect(hWnd, &wndRect);
+    const int hghtWnd = wndRect.bottom - wndRect.top;
+    const int wdthWnd = wndRect.right - wndRect.left;
+    const int wdthTable = wdthWnd - 2 * TABLE_HORIZONTAL_MARGIN;
 
-        TextTable *textTable = new TextTable(hWndDc, content, TABLE_HORIZONTAL_MARGIN, 
-            TABLE_VERTICAL_MARGIN - si.nPos, wdthTable, hFont, bAlignRows);
+    SCROLLINFO si;
+    si.cbSize = sizeof(SCROLLINFO);
+    si.fMask = SIF_ALL;
+    GetScrollInfo(hWnd, SB_VERT, &si);
 
-        GetScrollInfo(hWnd, SB_VERT, &si);
-        if (hghtTable != textTable->GetHeight()) {
-            hghtTable = textTable->GetHeight();
-            si.cbSize = sizeof(SCROLLINFO);
-            si.fMask = SIF_POS | SIF_RANGE;
-            si.nPos = 0;
-            si.nMin = 0;
-            si.nMax = hghtTable + TABLE_VERTICAL_MARGIN - hghtWnd + VSCROLLBAR_MARGIN;
-            SetScrollInfo(hWnd, SB_VERT, &si, true);
-        }
+    MoveWindow(hCheckBox, CHECKBOX_ALIGN_ROWS_X, CHECKBOX_ALIGN_ROWS_Y - si.nPos,
+        CHECKBOX_ALIGN_ROWS_WIDTH, CHECKBOX_ALIGN_ROWS_HEIGHT, true);
 
-        textTable->Draw();
+    TextTable *textTable = new TextTable(hWndDc, content, TABLE_HORIZONTAL_MARGIN, 
+        TABLE_VERTICAL_MARGIN - si.nPos, wdthTable, hFont, bAlignRows, hghtWnd - 2 * TABLE_VERTICAL_MARGIN);
 
-        delete textTable;
-    }
+    GetScrollInfo(hWnd, SB_VERT, &si);
+    hghtTable = textTable->GetHeight();
+    si.cbSize = sizeof(SCROLLINFO);
+    si.fMask = SIF_RANGE;
+    si.nMin = 0;
+    si.nMax = hghtTable + TABLE_VERTICAL_MARGIN * 2 - hghtWnd;
+    SetScrollInfo(hWnd, SB_VERT, &si, true);
+
+    textTable->Draw();
+
+    delete textTable;
+
     EndPaint(hWnd, &ps);
 }
 
-void OnTryResize(LPARAM lParam)
+void OnTryGetResizeInfo(LPARAM lParam)
 {
     LPMINMAXINFO lpMMI;
     lpMMI = (LPMINMAXINFO)lParam;
@@ -296,17 +297,29 @@ TableContent GetFileContent(std::wstring sPath, wchar_t cDelimiter)
 
     TableContent content;
     std::wstring sLine;
-    while (std::getline(ifs, sLine)) {
-        if (!sLine.empty()) {
-            std::wistringstream iss(sLine);
-            TableRowContent rowContent;
-            std::wstring sWord;
-            while (std::getline(iss, sWord, cDelimiter)) {
-                rowContent.push_back(sWord);
+
+    std::getline(ifs, sLine);
+    if (!(ifs.eof() && Trim(sLine).empty())) {
+        do {
+            if (sLine.size()) {
+                std::wistringstream iss(sLine);
+                TableRowContent rowContent;
+                std::wstring sWord;
+                while (std::getline(iss, sWord, cDelimiter)) {
+                    rowContent.push_back(Trim(sWord));
+                }
+                content.push_back(rowContent);
             }
-            content.push_back(rowContent);
-        }
+        } while (std::getline(ifs, sLine));
     }
 
     return content;
+}
+
+std::wstring Trim(std::wstring &s)
+{
+    const std::wstring WHITESPACE = L" \n\r\t\f\v\uFEFF";
+    size_t iStart = s.find_first_not_of(WHITESPACE);
+    size_t iEnd = s.find_last_not_of(WHITESPACE);
+    return iStart == iEnd ? L"" : s.substr(iStart, iEnd + 1);
 }

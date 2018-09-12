@@ -14,7 +14,7 @@ class TextTable
 {
 public:
     TextTable(HDC hDc, TableContent &content, int x, int y, int wdthTable,
-        HFONT hFont, bool bAlignRows = true);
+        HFONT hFont, bool bAlignRows = true, int hghtEmptyTable = 0);
     void Draw();
     int GetHeight();
 private:
@@ -23,6 +23,7 @@ private:
     int m_x;
     int m_y;
     int m_wdthTable;
+    int m_hghtEmptyTable;
     bool m_bAlignRows;
 
     HFONT m_hFont;
