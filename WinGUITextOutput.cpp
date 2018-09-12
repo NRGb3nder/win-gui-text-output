@@ -49,6 +49,7 @@ void CreateMainWindowClass(HINSTANCE hInstance);
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 void OnCreate(HWND hWnd, LPARAM lParam);
+void OnDestroy();
 void OnCommand(HWND hWnd, WPARAM wParam);
 void OnTryPaint(HWND hWnd);
 void OnTryGetResizeInfo(LPARAM lParam);
@@ -112,7 +113,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         OnCreate(hWnd, lParam);
         break;
     case WM_DESTROY:
-        DeleteObject(hFont);
+        OnDestroy();
         PostQuitMessage(0);
         break;
     case WM_COMMAND:
@@ -146,6 +147,11 @@ void OnCreate(HWND hWnd, LPARAM lParam)
         CHECKBOX_ALIGN_ROWS_WIDTH, CHECKBOX_ALIGN_ROWS_HEIGHT,
         hWnd, (HMENU)ID_ALIGN_ROWS_CHECKBOX,
         ((LPCREATESTRUCT)lParam)->hInstance, NULL);
+}
+
+void OnDestroy()
+{
+    DeleteObject(hFont);
 }
 
 void OnCommand(HWND hWnd, WPARAM wParam)
@@ -320,6 +326,9 @@ std::wstring Trim(std::wstring &s)
 {
     const std::wstring WHITESPACE = L" \n\r\t\f\v\uFEFF";
     size_t iStart = s.find_first_not_of(WHITESPACE);
+    if (iStart == std::string::npos) {
+        return L"";
+    }
     size_t iEnd = s.find_last_not_of(WHITESPACE);
-    return iStart == iEnd ? L"" : s.substr(iStart, iEnd + 1);
+    return s.substr(iStart, iEnd - iStart + 1);
 }
