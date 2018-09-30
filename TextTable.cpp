@@ -1,35 +1,35 @@
 #include "TextTable.h"
 
-const float TextTable::CHAR_WIDTH_COEFF = 1.5;
-const COLORREF TextTable::TABLE_BRUSH_COLOR = RGB(255, 255, 255);
-const COLORREF TextTable::TABLE_PEN_COLOR = RGB(0, 0, 0);
-const int TextTable::TABLE_PEN_WIDTH = 1;
-const int TextTable::TABLE_PEN_TYPE = PS_SOLID;
+CONST FLOAT TextTable::CHAR_WIDTH_COEFF = 1.5;
+CONST COLORREF TextTable::TABLE_BRUSH_COLOR = RGB(255, 255, 255);
+CONST COLORREF TextTable::TABLE_PEN_COLOR = RGB(0, 0, 0);
+CONST INT TextTable::TABLE_PEN_WIDTH = 1;
+CONST INT TextTable::TABLE_PEN_TYPE = PS_SOLID;
 
-TextTable::TextTable(HDC hDc, TableContent &content, int x, int y, int wdthTable,
-    HFONT hFont, bool bAlignRows, int hghtEmptyTable) : m_hDc(hDc), m_content(content), m_x(x), m_y(y), m_wdthTable(wdthTable),
+TextTable::TextTable(HDC hDc, TTableContent &vContent, INT x, INT y, INT wdthTable,
+    HFONT hFont, BOOL bAlignRows, INT hghtEmptyTable) : m_hDc(hDc), m_vContent(vContent), m_x(x), m_y(y), m_wdthTable(wdthTable),
     m_hFont(hFont), m_bAlignRows(bAlignRows), m_hghtEmptyTable(hghtEmptyTable), m_hghtTableMax(0), m_hghtTableActual(0)
 {
     CalculateMetrics();
 }
 
-void TextTable::Draw()
+VOID TextTable::Draw()
 {
     HFONT hOldFont = (HFONT)SelectObject(m_hDc, m_hFont);
-    const HBRUSH hBr = CreateSolidBrush(TABLE_BRUSH_COLOR);
-    const HBRUSH hOldBr = (HBRUSH)SelectObject(m_hDc, hBr);
-    const HPEN hPn = CreatePen(TABLE_PEN_TYPE, TABLE_PEN_WIDTH, TABLE_PEN_COLOR);
-    const HPEN hOldPn = (HPEN)SelectObject(m_hDc, hPn);
+    CONST HBRUSH hBr = CreateSolidBrush(TABLE_BRUSH_COLOR);
+    CONST HBRUSH hOldBr = (HBRUSH)SelectObject(m_hDc, hBr);
+    CONST HPEN hPn = CreatePen(TABLE_PEN_TYPE, TABLE_PEN_WIDTH, TABLE_PEN_COLOR);
+    CONST HPEN hOldPn = (HPEN)SelectObject(m_hDc, hPn);
 
-    if (!m_content.size()) {
+    if (!m_vContent.size()) {
         Rectangle(m_hDc, m_x, m_y, m_x + m_wdthTable, m_y + m_hghtEmptyTable);
     } else {
-        int xCell = m_x;
-        int yCell = m_y;
-        int hghtCell;
-        for (unsigned iRow = 0; iRow < m_cRows; iRow++) {
-            hghtCell = m_bAlignRows ? m_hghtCellMax : m_ahghtCell.at(iRow);
-            for (unsigned iCol = 0; iCol < m_cCols; iCol++) {
+        INT xCell = m_x;
+        INT yCell = m_y;
+        INT hghtCell;
+        for (UINT uRow = 0; uRow < m_cRows; uRow++) {
+            hghtCell = m_bAlignRows ? m_hghtCellMax : m_ahghtCell.at(uRow);
+            for (UINT uCol = 0; uCol < m_cCols; uCol++) {
                 Rectangle(m_hDc, xCell - TABLE_PEN_WIDTH, yCell,
                     xCell + m_wdthCell, yCell + hghtCell + TABLE_PEN_WIDTH);
 
@@ -38,8 +38,8 @@ void TextTable::Draw()
                 rectCell.top = yCell + TABLE_PEN_WIDTH;
                 rectCell.right = xCell + m_wdthCell - TABLE_PEN_WIDTH;
                 rectCell.bottom = yCell + hghtCell - TABLE_PEN_WIDTH;
-                if (m_content.size() > iRow && m_content[iRow].size() > iCol) {
-                    DrawText(m_hDc, (LPCTSTR)m_content[iRow][iCol].c_str(), -1, &rectCell,
+                if (m_vContent.size() > uRow && m_vContent[uRow].size() > uCol) {
+                    DrawText(m_hDc, (LPCTSTR)m_vContent[uRow][uCol].c_str(), -1, &rectCell,
                         DT_CENTER | DT_WORDBREAK | DT_EDITCONTROL);
                 }
 
@@ -57,19 +57,19 @@ void TextTable::Draw()
     SelectObject(m_hDc, hOldFont);
 }
 
-int TextTable::GetHeight()
+INT TextTable::GetHeight()
 {
     return m_bAlignRows ? m_hghtTableMax : m_hghtTableActual;
 }
 
-void TextTable::CalculateMetrics()
+VOID TextTable::CalculateMetrics()
 {
     HFONT hOldFont = (HFONT)SelectObject(m_hDc, m_hFont);
     GetTextMetrics(m_hDc, &m_txtmtrc);
     SelectObject(m_hDc, hOldFont);
 
-    m_cCols = TextTable::GetNumberOfColumns(m_content);
-    m_cRows = m_content.size();
+    m_cCols = TextTable::GetNumberOfColumns(m_vContent);
+    m_cRows = m_vContent.size();
 
     if (!m_cCols && !m_cRows) {
         m_cCols = m_cRows = 1;
@@ -77,43 +77,44 @@ void TextTable::CalculateMetrics()
         m_hghtTableMax = m_hghtTableActual = m_hghtEmptyTable;
     } else {
         m_wdthCell = m_wdthTable / m_cCols;
-        m_ahghtCell = GetCellHeights(m_content);
+        m_ahghtCell = GetCellHeights(m_vContent);
 
         m_hghtCellMax = *std::max_element(m_ahghtCell.begin(), m_ahghtCell.end());
         m_hghtTableMax = m_hghtCellMax * m_ahghtCell.size();
-        m_hghtTableActual = std::accumulate(m_ahghtCell.begin(), m_ahghtCell.end(), 0, std::plus<int>());
+        m_hghtTableActual = std::accumulate(m_ahghtCell.begin(), m_ahghtCell.end(), 0, std::plus<INT>());
     }
 }
 
-std::vector<int> TextTable::GetCellHeights(TableContent &content) {
+std::vector<INT> TextTable::GetCellHeights(TTableContent &content) {
 
-    const int wdthCellInChars = (int)std::ceil((double)m_wdthCell / (m_txtmtrc.tmAveCharWidth * CHAR_WIDTH_COEFF + m_txtmtrc.tmOverhang));
-    std::vector<int> ahghtCell;
-    for (TableRowContent &row : content) {
-        ahghtCell.push_back(
+    CONST INT wdthCellInChars = (INT)std::ceil((DOUBLE)m_wdthCell / 
+		(m_txtmtrc.tmAveCharWidth * CHAR_WIDTH_COEFF + m_txtmtrc.tmOverhang));
+    std::vector<INT> vhghtCell;
+    for (TTableRowContent &row : content) {
+        vhghtCell.push_back(
             (m_txtmtrc.tmInternalLeading + m_txtmtrc.tmExternalLeading + m_txtmtrc.tmHeight) *
-            (int)std::ceil(((double)GetMaxElementLength(row) / wdthCellInChars)));
+            (INT)std::ceil(((DOUBLE)GetMaxElementLength(row) / wdthCellInChars)));
     }
-    return ahghtCell;
+    return vhghtCell;
 }
 
-int TextTable::GetNumberOfColumns(TableContent &content)
+INT TextTable::GetNumberOfColumns(TTableContent &content)
 {
-    int iCols = 0;
-    for (TableRowContent &row : content)
+    INT iCols = 0;
+    for (TTableRowContent &row : content)
     {
-        if ((int)row.size() > iCols) {
+        if ((INT)row.size() > iCols) {
             iCols = row.size();
         }
     }
     return iCols;
 }
 
-int TextTable::GetMaxElementLength(TableRowContent &row)
+INT TextTable::GetMaxElementLength(TTableRowContent &row)
 {
-    int iMaxLength = 0;
+    INT iMaxLength = 0;
     for (std::wstring &sElement : row) {
-        if (((int)sElement.length() > iMaxLength)) {
+        if (((INT)sElement.length() > iMaxLength)) {
             iMaxLength = sElement.length();
         }
     }

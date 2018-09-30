@@ -7,44 +7,44 @@
 #include <vector>
 #include <windows.h>
 
-typedef std::vector<std::wstring> TableRowContent;
-typedef std::vector<TableRowContent> TableContent; 
+typedef std::vector<std::wstring> TTableRowContent;
+typedef std::vector<TTableRowContent> TTableContent; 
 
 class TextTable
 {
 public:
-    TextTable(HDC hDc, TableContent &content, int x, int y, int wdthTable,
-        HFONT hFont, bool bAlignRows = true, int hghtEmptyTable = 0);
-    void Draw();
-    int GetHeight();
+    TextTable(HDC hDc, TTableContent &vContent, INT x, INT y, INT wdthTable,
+        HFONT hFont, BOOL bAlignRows = TRUE, INT hghtEmptyTable = 0);
+    VOID Draw();
+    INT GetHeight();
 private:
     HDC m_hDc;
-    TableContent m_content;
-    int m_x;
-    int m_y;
-    int m_wdthTable;
-    int m_hghtEmptyTable;
-    bool m_bAlignRows;
+    TTableContent m_vContent;
+    INT m_x;
+    INT m_y;
+    INT m_wdthTable;
+    INT m_hghtEmptyTable;
+    BOOL m_bAlignRows;
 
     HFONT m_hFont;
     TEXTMETRIC m_txtmtrc;
-    int m_wdthCell;
-    std::vector<int> m_ahghtCell;
-    int m_hghtCellMax;
-    int m_hghtTableMax;
-    int m_hghtTableActual;
-    unsigned m_cCols;
-    unsigned m_cRows;
+    INT m_wdthCell;
+    std::vector<INT> m_ahghtCell;
+    INT m_hghtCellMax;
+    INT m_hghtTableMax;
+    INT m_hghtTableActual;
+    UINT m_cCols;
+    UINT m_cRows;
 
-    static const float CHAR_WIDTH_COEFF;
-    static const COLORREF TABLE_BRUSH_COLOR;
-    static const COLORREF TABLE_PEN_COLOR;
-    static const int TABLE_PEN_WIDTH;
-    static const int TABLE_PEN_TYPE;
+    static CONST FLOAT CHAR_WIDTH_COEFF;
+    static CONST COLORREF TABLE_BRUSH_COLOR;
+    static CONST COLORREF TABLE_PEN_COLOR;
+    static CONST INT TABLE_PEN_WIDTH;
+    static CONST INT TABLE_PEN_TYPE;
 
-    TextTable(const TextTable &) = delete;
-    void CalculateMetrics();
-    std::vector<int> GetCellHeights(TableContent &content);
-    static int GetNumberOfColumns(TableContent &content);
-    static int GetMaxElementLength(TableRowContent &row);
+    TextTable(CONST TextTable &) = delete;
+    VOID CalculateMetrics();
+    std::vector<INT> GetCellHeights(TTableContent &content);
+    static INT GetNumberOfColumns(TTableContent &content);
+    static INT GetMaxElementLength(TTableRowContent &row);
 };

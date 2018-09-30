@@ -45,19 +45,19 @@
 
 #define TABLE_DELIMITER '|'
 
-void CreateMainWindowClass(HINSTANCE hInstance);
+VOID CreateMainWindowClass(HINSTANCE hInstance);
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
-void OnCreate(HWND hWnd, LPARAM lParam);
-void OnDestroy();
-void OnCommand(HWND hWnd, WPARAM wParam);
-void OnTryPaint(HWND hWnd);
-void OnTryGetResizeInfo(LPARAM lParam);
-void OnTryVerticalScroll(HWND hWnd, WPARAM wParam);
+VOID OnCreate(HWND hWnd, LPARAM lParam);
+VOID OnDestroy();
+VOID OnCommand(HWND hWnd, WPARAM wParam);
+VOID OnTryPaint(HWND hWnd);
+VOID OnTryGetResizeInfo(LPARAM lParam);
+VOID OnTryVerticalScroll(HWND hWnd, WPARAM wParam);
 
-void AddMenu(HWND hWnd);
-void ShowOpenTableFileDialog(HWND hWnd);
-TableContent GetFileContent(std::wstring sPath, wchar_t cDelimiter);
+VOID AddMenu(HWND hWnd);
+VOID ShowOpenTableFileDialog(HWND hWnd);
+TTableContent GetFileContent(std::wstring sPath, WCHAR cDelimiter);
 std::wstring Trim(std::wstring &s);
 
 HMENU hMenu;
@@ -65,17 +65,17 @@ HMENU hFileSubMenu;
 HWND hCheckBox;
 HFONT hFont;
 
-int yScrollBarPos = 0;
-int hghtTable = 0;
+INT yScrollBarPos = 0;
+INT hghtTable = 0;
 
-TableContent content;
-bool bAlignRows = false;
+TTableContent content;
+BOOL bAlignRows = FALSE;
 
-int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+INT CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, INT nCmdShow)
 {
     CreateMainWindowClass(hInstance);
 
-    const HWND hWnd = CreateWindow(WINDOW_CLASS_NAME, WINDOW_TITLE, 
+    CONST HWND hWnd = CreateWindow(WINDOW_CLASS_NAME, WINDOW_TITLE, 
         WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX |
         WS_VISIBLE | WS_VSCROLL, CW_USEDEFAULT, CW_USEDEFAULT, 
         WINDOW_DEFAULT_WIDTH, WINDOW_DEFAULT_HEIGHT, NULL, NULL, hInstance, NULL);
@@ -92,7 +92,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     return msg.wParam;
 }
 
-void CreateMainWindowClass(HINSTANCE hInstance)
+VOID CreateMainWindowClass(HINSTANCE hInstance)
 {
     WNDCLASS wndc = { 0 };
     wndc.style = CS_HREDRAW | CS_VREDRAW;
@@ -133,10 +133,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return DefWindowProc(hWnd, message, wParam, lParam);
 }
 
-void OnCreate(HWND hWnd, LPARAM lParam)
+VOID OnCreate(HWND hWnd, LPARAM lParam)
 {
-    ShowScrollBar(hWnd, SB_VERT, false);
-    hFont = CreateFont(18, 0, 0, 0, 300, false, false, false,
+    ShowScrollBar(hWnd, SB_VERT, FALSE);
+    hFont = CreateFont(18, 0, 0, 0, 300, FALSE, FALSE, FALSE,
         DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
         DEFAULT_QUALITY, DEFAULT_PITCH, L"Arial Narrow");
     AddMenu(hWnd);
@@ -149,12 +149,12 @@ void OnCreate(HWND hWnd, LPARAM lParam)
         ((LPCREATESTRUCT)lParam)->hInstance, NULL);
 }
 
-void OnDestroy()
+VOID OnDestroy()
 {
     DeleteObject(hFont);
 }
 
-void OnCommand(HWND hWnd, WPARAM wParam)
+VOID OnCommand(HWND hWnd, WPARAM wParam)
 {
     switch (wParam) {
     case IDM_HELP:
@@ -165,28 +165,28 @@ void OnCommand(HWND hWnd, WPARAM wParam)
         break;
     case IDM_OPEN:
         ShowOpenTableFileDialog(hWnd);
-        InvalidateRect(hWnd, NULL, true);
+        InvalidateRect(hWnd, NULL, TRUE);
         UpdateWindow(hWnd);
         break;
     case ID_ALIGN_ROWS_CHECKBOX:
         CheckDlgButton(hWnd, ID_ALIGN_ROWS_CHECKBOX, bAlignRows ? BST_UNCHECKED : BST_CHECKED);
         bAlignRows = !bAlignRows;
-        InvalidateRect(hWnd, NULL, true);
+        InvalidateRect(hWnd, NULL, TRUE);
         UpdateWindow(hWnd);
         break;
     }
 }
 
-void OnTryPaint(HWND hWnd)
+VOID OnTryPaint(HWND hWnd)
 {   
     PAINTSTRUCT ps;
-    const HDC hWndDc = BeginPaint(hWnd, &ps);
+    CONST HDC hWndDc = BeginPaint(hWnd, &ps);
 
     RECT wndRect;
     GetClientRect(hWnd, &wndRect);
-    const int hghtWnd = wndRect.bottom - wndRect.top;
-    const int wdthWnd = wndRect.right - wndRect.left;
-    const int wdthTable = wdthWnd - 2 * TABLE_HORIZONTAL_MARGIN;
+    CONST INT hghtWnd = wndRect.bottom - wndRect.top;
+    CONST INT wdthWnd = wndRect.right - wndRect.left;
+    CONST INT wdthTable = wdthWnd - 2 * TABLE_HORIZONTAL_MARGIN;
 
     SCROLLINFO si;
     si.cbSize = sizeof(SCROLLINFO);
@@ -194,7 +194,7 @@ void OnTryPaint(HWND hWnd)
     GetScrollInfo(hWnd, SB_VERT, &si);
 
     MoveWindow(hCheckBox, CHECKBOX_ALIGN_ROWS_X, CHECKBOX_ALIGN_ROWS_Y - si.nPos,
-        CHECKBOX_ALIGN_ROWS_WIDTH, CHECKBOX_ALIGN_ROWS_HEIGHT, true);
+        CHECKBOX_ALIGN_ROWS_WIDTH, CHECKBOX_ALIGN_ROWS_HEIGHT, TRUE);
 
     TextTable *textTable = new TextTable(hWndDc, content, TABLE_HORIZONTAL_MARGIN, 
         TABLE_VERTICAL_MARGIN - si.nPos, wdthTable, hFont, bAlignRows, hghtWnd - 2 * TABLE_VERTICAL_MARGIN);
@@ -205,7 +205,7 @@ void OnTryPaint(HWND hWnd)
     si.fMask = SIF_RANGE;
     si.nMin = 0;
     si.nMax = hghtTable + TABLE_VERTICAL_MARGIN * 2 - hghtWnd;
-    SetScrollInfo(hWnd, SB_VERT, &si, true);
+    SetScrollInfo(hWnd, SB_VERT, &si, TRUE);
 
     textTable->Draw();
 
@@ -214,7 +214,7 @@ void OnTryPaint(HWND hWnd)
     EndPaint(hWnd, &ps);
 }
 
-void OnTryGetResizeInfo(LPARAM lParam)
+VOID OnTryGetResizeInfo(LPARAM lParam)
 {
     LPMINMAXINFO lpMMI;
     lpMMI = (LPMINMAXINFO)lParam;
@@ -222,7 +222,7 @@ void OnTryGetResizeInfo(LPARAM lParam)
     lpMMI->ptMinTrackSize.y = WINDOW_MIN_HEIGHT;
 }
 
-void OnTryVerticalScroll(HWND hWnd, WPARAM wParam)
+VOID OnTryVerticalScroll(HWND hWnd, WPARAM wParam)
 {
     SCROLLINFO si;
     si.cbSize = sizeof(SCROLLINFO);
@@ -244,19 +244,19 @@ void OnTryVerticalScroll(HWND hWnd, WPARAM wParam)
     }
 
     si.fMask = SIF_POS;
-    SetScrollInfo(hWnd, SB_VERT, &si, true);
+    SetScrollInfo(hWnd, SB_VERT, &si, TRUE);
     GetScrollInfo(hWnd, SB_VERT, &si);
 
     if (si.nPos != yScrollBarPos)
     {
         ScrollWindow(hWnd, 0, yScrollBarPos - si.nPos, NULL, NULL);
-        InvalidateRect(hWnd, NULL, true);
+        InvalidateRect(hWnd, NULL, TRUE);
         UpdateWindow(hWnd);
         yScrollBarPos = si.nPos;
     }
 }
 
-void AddMenu(HWND hWnd)
+VOID AddMenu(HWND hWnd)
 {
     hMenu = CreateMenu();
     hFileSubMenu = CreatePopupMenu();
@@ -267,10 +267,10 @@ void AddMenu(HWND hWnd)
     SetMenu(hWnd, hMenu);
 }
 
-void ShowOpenTableFileDialog(HWND hWnd)
+VOID ShowOpenTableFileDialog(HWND hWnd)
 {
     OPENFILENAME ofn;
-    wchar_t szFileName[MAX_PATH];
+    WCHAR szFileName[MAX_PATH];
 
     ofn = { 0 };
     ofn.lStructSize = sizeof(OPENFILENAME);
@@ -293,15 +293,15 @@ void ShowOpenTableFileDialog(HWND hWnd)
     }
 }
 
-TableContent GetFileContent(std::wstring sPath, wchar_t cDelimiter)
+TTableContent GetFileContent(std::wstring sPath, WCHAR cDelimiter)
 {
     std::wifstream ifs(sPath);
-    ifs.imbue(std::locale(ifs.getloc(), new std::codecvt_utf8<wchar_t>));
+    ifs.imbue(std::locale(ifs.getloc(), new std::codecvt_utf8<WCHAR>));
     if (!ifs) {
         throw new std::exception(E_FILE_NOT_OPENED);
     }
 
-    TableContent content;
+    TTableContent content;
     std::wstring sLine;
 
     std::getline(ifs, sLine);
@@ -309,7 +309,7 @@ TableContent GetFileContent(std::wstring sPath, wchar_t cDelimiter)
         do {
             if (sLine.size()) {
                 std::wistringstream iss(sLine);
-                TableRowContent rowContent;
+                TTableRowContent rowContent;
                 std::wstring sWord;
                 while (std::getline(iss, sWord, cDelimiter)) {
                     rowContent.push_back(Trim(sWord));
@@ -324,11 +324,11 @@ TableContent GetFileContent(std::wstring sPath, wchar_t cDelimiter)
 
 std::wstring Trim(std::wstring &s)
 {
-    const std::wstring WHITESPACE = L" \n\r\t\f\v\uFEFF";
-    size_t iStart = s.find_first_not_of(WHITESPACE);
+    CONST std::wstring WHITESPACE = L" \n\r\t\f\v\uFEFF";
+    SIZE_T iStart = s.find_first_not_of(WHITESPACE);
     if (iStart == std::string::npos) {
         return L"";
     }
-    size_t iEnd = s.find_last_not_of(WHITESPACE);
+    SIZE_T iEnd = s.find_last_not_of(WHITESPACE);
     return s.substr(iStart, iEnd - iStart + 1);
 }
